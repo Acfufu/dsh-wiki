@@ -166,5 +166,27 @@ res = resOf();
 await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: `/dsh-wiki/site?path=${encodeURIComponent(path.join(repo, ".dsh-wiki"))}` }, res);
 check("site backbar iframe-guarded", res.body.includes("window.self!==window.top"));
 
+// 16. 同级目录自动发现：import-legacy 落盘目标（旧 wiki.json 的 repoId）不在登记表里，
+//     靠扫描已知根的父目录一层收录；无站点与点目录兄弟不收录。
+const sibParent = mkdtempSync(path.join(tmpdir(), "dsh-wiki-sibs-"));
+const probe = path.join(sibParent, "probe"); // 已知根（会话 cwd），自身无 wiki
+mkdirSync(probe, { recursive: true });
+const sibWiki = path.join(sibParent, "sib-wiki"); // 兄弟带完整站点 → 应被发现
+mkdirSync(path.join(sibWiki, ".dsh-wiki", "site"), { recursive: true });
+writeFileSync(path.join(sibWiki, ".dsh-wiki", "wiki.json"), JSON.stringify({ schema: "repo-wiki-local/1", repoId: sibWiki, title: "Sib Wiki", pages: [] }));
+writeFileSync(path.join(sibWiki, ".dsh-wiki", "site", "index.html"), "<!DOCTYPE html><html><main>sib</main></html>");
+const sibNoSite = path.join(sibParent, "sib-nosite"); // 有 .dsh-wiki 无站点 → 不收录
+mkdirSync(path.join(sibNoSite, ".dsh-wiki"), { recursive: true });
+const sibDot = path.join(sibParent, ".sib-hidden"); // 点目录 → 跳过
+mkdirSync(path.join(sibDot, ".dsh-wiki", "site"), { recursive: true });
+writeFileSync(path.join(sibDot, ".dsh-wiki", "site", "index.html"), "<!DOCTYPE html><html><main>h</main></html>");
+ctx["_on_session/event"]({ header: { cwd: probe } }, {});
+res = resOf();
+await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: "/dsh-wiki/api/status" }, res);
+const sibListed = JSON.parse(res.body).wikis.map((w) => w.root);
+check("sibling wiki discovered", sibListed.includes(sibWiki));
+check("sibling without site skipped", !sibListed.includes(sibNoSite));
+check("dot-dir sibling skipped", !sibListed.includes(sibDot));
+
 console.log(FAILS.length ? `\n${FAILS.length} FAILED` : "\nALL PASS");
 process.exit(FAILS.length ? 1 : 0);

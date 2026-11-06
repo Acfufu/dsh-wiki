@@ -87,7 +87,7 @@ desktop profile 是 `patchReload: live`，装完刷新页面即生效。版本�
 - `/dsh-wiki/site?path=<仓库>/.dsh-wiki` — 直接打开某个站点
 - `/dsh-wiki/api/status` — JSON 状态
 
-**发现机制**：插件从会话事件自动记住工作目录（持久化在 `<profile home>/dsh-wiki/registry.json`），`config.wikiRoots` 可补充额外根目录，无需手填配置。
+**发现机制**：插件从会话事件自动记住工作目录（持久化在 `<profile home>/dsh-wiki/registry.json`），并自动扫描已知目录的**同级目录**——凡含 `<wikiDirName>/site/index.html` 即收录，`import-legacy` 导入的存量 wiki 无需任何配置即可出现在索引；`config.wikiRoots` 可补充额外根目录。
 
 **从 ZCode 迁移**：对话里说「导入 ZCode 的旧 wiki」或 `/repo-wiki` 存量数据（`~/.zcode/v2/repo-wiki/<hash>`）经 `import-legacy` 一键转入——数据格式与 [zcode-repo-wiki](https://github.com/Acfufu/zcode-repo-wiki) 完全兼容。
 

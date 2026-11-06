@@ -87,7 +87,7 @@ Local routes (loopback on the desktop host):
 - `/dsh-wiki/site?path=<repo>/.dsh-wiki` — open one site directly
 - `/dsh-wiki/api/status` — JSON status
 
-**Discovery**: session workspaces are remembered automatically (persisted to `<profile home>/dsh-wiki/registry.json`); `config.wikiRoots` adds extra roots. Zero manual config.
+**Discovery**: session workspaces are remembered automatically (persisted to `<profile home>/dsh-wiki/registry.json`), and **sibling directories** of known roots are scanned too — any dir containing `<wikiDirName>/site/index.html` is picked up, so wikis imported via `import-legacy` show up in the index with zero config; `config.wikiRoots` adds extra roots.
 
 **Migrating from ZCode**: say "import the legacy wiki" — `import-legacy` converts [zcode-repo-wiki](https://github.com/Acfufu/zcode-repo-wiki) data (`~/.zcode/v2/repo-wiki/<hash>`) in one step; the `wiki.json` schema is fully compatible.
 
