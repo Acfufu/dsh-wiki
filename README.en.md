@@ -17,11 +17,11 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-    <img src="https://img.shields.io/badge/DSH-0.2.0--rc.1%20%E2%86%92%200.2.2--rc.1-2563eb" alt="DSH 0.2.x compatible">
-    <img src="https://img.shields.io/badge/python-%E2%89%A53.7-blue" alt="Python ≥3.7">
-    <img src="https://img.shields.io/badge/tests-64%20%2B%2025%20passed-brightgreen" alt="tests 64+25 passed">
-    <img src="https://img.shields.io/badge/network-zero-orange" alt="zero network">
+    <img src="docs/assets/badges/license.svg" alt="MIT License">
+    <img src="docs/assets/badges/dsh.svg" alt="DSH 0.2.x compatible">
+    <img src="docs/assets/badges/python.svg" alt="Python ≥3.7">
+    <img src="docs/assets/badges/tests.svg" alt="tests 64+25 passed">
+    <img src="docs/assets/badges/network.svg" alt="zero network">
   </p>
 
 </div>
@@ -38,13 +38,14 @@
 
 ## ✨ What it is
 
-A standard DSH community plugin (`@acfufu/dsh-wiki`). Once installed into any web/desktop profile it gives you three entries:
+A standard DSH community plugin (`@acfufu/dsh-wiki`). Once installed into any web/desktop profile it gives you four entries:
 
 | Entry | Shape | Notes |
 | --- | --- | --- |
 | **`dsh-wiki` skill** | runtime skill | Say "generate a wiki for this repo" and the 5-phase protocol takes over: inventory → config resolution → language detection → page-tree planning → per-page writing → build + selfcheck |
 | **`/wiki` command** | slash command | `/wiki generate [path]` (runs in a fork subagent), `/wiki view` (prints the local site URL), `/wiki list` |
-| **📖 Wiki button** | session-header slot | Opens the local index page listing every built wiki, click to read |
+| **📚 Sidebar Wiki panel** | left sidebar global panel | A new 📖 row in the sidebar: click to list every built wiki, pick one and the site is read right inside the app (refresh / back to list / pop-out) |
+| **📖 Wiki button** | session-header slot | Opens the local index page in a standalone window (when you don't want to leave the conversation) |
 
 Artifacts land in `<repo>/.dsh-wiki/`:
 

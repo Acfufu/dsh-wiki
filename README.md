@@ -17,11 +17,11 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
-    <img src="https://img.shields.io/badge/DSH-0.2.0--rc.1%20%E2%86%92%200.2.2--rc.1-2563eb" alt="DSH 0.2.x compatible">
-    <img src="https://img.shields.io/badge/python-%E2%89%A53.7-blue" alt="Python ≥3.7">
-    <img src="https://img.shields.io/badge/tests-64%20%2B%2025%20passed-brightgreen" alt="tests 64+25 passed">
-    <img src="https://img.shields.io/badge/network-zero-orange" alt="zero network">
+    <img src="docs/assets/badges/license.svg" alt="MIT License">
+    <img src="docs/assets/badges/dsh.svg" alt="DSH 0.2.x compatible">
+    <img src="docs/assets/badges/python.svg" alt="Python ≥3.7">
+    <img src="docs/assets/badges/tests.svg" alt="tests 64+25 passed">
+    <img src="docs/assets/badges/network.svg" alt="zero network">
   </p>
 
 </div>
@@ -38,13 +38,14 @@
 
 ## ✨ 这是什么
 
-一个标准 DSH 社区插件（`@acfufu/dsh-wiki`），装进任意 web/desktop profile 后给你三样东西：
+一个标准 DSH 社区插件（`@acfufu/dsh-wiki`），装进任意 web/desktop profile 后给你四样东西：
 
 | 入口 | 形式 | 说明 |
 | --- | --- | --- |
 | **`dsh-wiki` 技能** | runtime skill | 对话里说「给这个仓库生成 wiki」即接管：盘点 → 配置解析 → 语言判定 → 页面树规划 → 逐页写作 → build + selfcheck |
 | **`/wiki` 命令** | slash command | `/wiki generate [路径]`（fork 子代理执行）、`/wiki view`（给出本机站点 URL）、`/wiki list` |
-| **📖 Wiki 按钮** | 会话头部槽位 | 打开本机索引页，汇总所有已构建 wiki，点开即读 |
+| **📚 侧栏 Wiki 面板** | 左侧栏全局面板 | 左栏新增 📖 入口：点开即列出所有已构建 wiki，选中后站点内嵌在应用里阅读（刷新 / 返回列表 / 新窗口一键切换） |
+| **📖 Wiki 按钮** | 会话头部槽位 | 以独立窗口打开本机索引页（不想占用主面板时用） |
 
 生成产物 `<仓库>/.dsh-wiki/`：
 
