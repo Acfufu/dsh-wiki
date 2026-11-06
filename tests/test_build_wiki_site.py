@@ -349,6 +349,46 @@ def main():
         check(f"viewer: {len(scripts)} inlined script(s) parse (node --check)", not bad,
               "; ".join(bad))
 
+    # ---- viewer: 内联 JS 不得残留 HTML 边界标签字面量（假 <body>/</body> 会把
+    # 宿主侧朴素注入器的 <script>…</script> 骗进脚本中间，注入的 </script>
+    # 提前闭合脚本并把 bundle 余下部分泄漏为正文 JS 墙）。
+    # 不变量：整份站点文档里 body/head 边界标签各只出现一次（模板的真标签）。
+    d = pathlib.Path(tmp) / "boundary-tags"
+    d.mkdir()
+    write_wiki(d, [{"id": "a", "title": "A",
+                    "markdown": "# A\n\n正文提到 <body>、</body></html> 与 <head> 字面量。\n"}])
+    cli("build", "--wiki", str(d))
+    site = (d / "site" / "index.html").read_text(encoding="utf-8")
+    lower = site.lower()
+    counts = {t: lower.count(t) for t in ("<body", "</body", "<head", "</head")}
+    check("viewer: HTML 边界标签在整份文档中各只出现一次（内联 JS 里的假标签已打断）",
+          all(v == 1 for v in counts.values()), f"counts={counts}")
+    naive = re.search(r"<body(?:\s[^>]*)?>", site, re.I)
+    check("viewer: 朴素 <body> 定位器命中的是真 body 标签",
+          naive is not None and naive.group(0) == "<body>",
+          f"hit={naive.group(0) if naive else None}")
+
+    # ---- import-legacy: 正文自带 # 标题首行时与页头 h1 去重（查看器已按元数据渲染 h1）
+    d = pathlib.Path(tmp) / "legacy-h1-dedup"
+    (d / "draft-pages").mkdir(parents=True)
+    (d / "wiki.json").write_text(json.dumps({
+        "repoId": "legacy-repo",
+        "pages": [{"id": "ov", "title": "Overview",
+                   "markdown": "# Overview\n\n正文内容。\n"},
+                  {"id": "kv", "title": "Keep",
+                   "markdown": "# 另起标题\n\n保留该标题，不与页头重复。\n"}]}),
+        encoding="utf-8")
+    dest = pathlib.Path(tmp) / "legacy-dest" / ".dsh-wiki"
+    p = cli("import-legacy", str(d), "--dest", str(dest))
+    ok = p.returncode == 0 and dest.is_dir()
+    site = (dest / "site" / "index.html").read_text(encoding="utf-8") if ok else ""
+    check("import: 与页头重复的首行 # 标题被去掉（不同标题保留）",
+          ok and site.count("<h1>Overview</h1>") == 1
+          and site.count("<h1>Keep</h1>") == 1
+          and site.count("<h1>另起标题</h1>") == 1,
+          f"rc={p.returncode} h1s=ov:{site.count('<h1>Overview</h1>')} "
+          f"keep:{site.count('<h1>Keep</h1>')} alt:{site.count('<h1>另起标题</h1>')}")
+
     failed = [n for n, ok in RESULTS if not ok]
     print(f"\n{len(RESULTS) - len(failed)}/{len(RESULTS)} passed" +
           (f"; FAILURES: {failed}" if failed else ""))

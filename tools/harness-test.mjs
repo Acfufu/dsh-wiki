@@ -87,6 +87,22 @@ res = resOf();
 await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: `/dsh-wiki/site?path=${encodeURIComponent(path.join(repo, ".dsh-wiki"))}` }, res);
 check("site 200 serves index.html", res.status === 200 && res.body.includes("<!DOCTYPE html>") && res.body.includes("demo"));
 
+// 3b. backbar must land at the LAST </body>: a fake "</body>" literal inside an
+// inline script string (old builds escaped only </script>) must not steal the
+// injection point — a mid-script injection closes the script early and leaks
+// the rest of the bundle as page text.
+const repoFake = mkdtempSync(path.join(tmpdir(), "dsh-wiki-harness3-"));
+mkdirSync(path.join(repoFake, ".dsh-wiki", "site"), { recursive: true });
+writeFileSync(path.join(repoFake, ".dsh-wiki", "site", "index.html"),
+  '<!DOCTYPE html><html><head></head><body><main>d</main><script>var s="</body></html>";</script></body></html>');
+res = resOf();
+await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: `/dsh-wiki/site?path=${encodeURIComponent(path.join(repoFake, ".dsh-wiki"))}` }, res);
+const fakeAt = res.body.indexOf('"</body');
+const barAt = res.body.indexOf("返回 DSH");
+check("site injection at last </body>", res.status === 200 && fakeAt !== -1 && barAt > fakeAt
+  && res.body.toLowerCase().lastIndexOf("</body>") > barAt,
+  `fakeAt=${fakeAt} barAt=${barAt}`);
+
 // 4. security: non-loopback host
 res = resOf();
 await handler({ method: "GET", headers: { host: "evil.example.com" }, url: "/dsh-wiki/api/status" }, res);
@@ -141,6 +157,14 @@ check("session cwd remembered (still no site → not listed)", !JSON.parse(res.b
 // 14. unknown subcommand
 out = registered.commands[0].handler({ rawInput: "frobnicate", agent: { session: { header: { id: "s1", cwd: repo } } } });
 check("unknown verb error", out.kind === "error");
+
+// 15. 返回栏 iframe 守卫：侧栏面板内嵌阅读时不渲染「← 返回 DSH」（否则会把 iframe 导航成应用套应用）
+res = resOf();
+await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: "/dsh-wiki/" }, res);
+check("index backbar iframe-guarded", res.body.includes("window.self!==window.top"));
+res = resOf();
+await handler({ method: "GET", headers: { host: "127.0.0.1:19387" }, url: `/dsh-wiki/site?path=${encodeURIComponent(path.join(repo, ".dsh-wiki"))}` }, res);
+check("site backbar iframe-guarded", res.body.includes("window.self!==window.top"));
 
 console.log(FAILS.length ? `\n${FAILS.length} FAILED` : "\nALL PASS");
 process.exit(FAILS.length ? 1 : 0);

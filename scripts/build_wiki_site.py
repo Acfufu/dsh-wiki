@@ -684,6 +684,17 @@ def _mermaid_runtime() -> str:
         # 大小写不敏感地打断脚本结束标记与注释起始（HTML 解析对 </script 大小写不敏感）
         js = re.sub(r"(?i)</script", "<\\/script", js)
         js = re.sub(r"(?i)<!--", "<\\!--", js)
+        # 打断 HTML 边界标签字面量（<body/</body/<head/</head/<html/</html/<script）。
+        # 内联 bundle 的字符串/模板字面量里就带这些序列（DOMPurify 的 XHTML 包装串
+        # '<html…><head></head><body>'+…+"</body></html>"、iframe 助手的 `<body …>`），
+        # 宿主侧朴素注入器靠正则找注入点（如本插件路由的 </body> 替换、
+        # dsh-host-webserver 的 /<body[^>]*>/ 定位），会命中假标签把 <script>…
+        # </script> 注进脚本中间——注入的 </script> 提前闭合脚本，bundle 余下部分
+        # 整体泄漏为正文文本（页面上出现巨幅 JS 源码墙）。
+        # \u003c 在 JS 字符串/模板/正则字面量（及 JSON 字符串）里都与 '<' 等价，语义不变；
+        # 若未来资产把这类序列用在字面量之外会直接语法报错，被 node --check 测试拦下。
+        js = re.sub(r"(?i)<(/?(?:body|head|html|script)(?![A-Za-z]))",
+                    lambda m: "\\u003c" + m.group(1), js)
         adapter = ("var __rwNs=window.__esbuild_esm_mermaid_nm;"
                    "window.mermaid=(__rwNs&&__rwNs.mermaid)&&(__rwNs.mermaid.default||__rwNs.mermaid);"
                    "if(!window.mermaid)console.warn('dsh-wiki: mermaid 挂载失败,图表仅显源码');")
@@ -1156,6 +1167,23 @@ def merge_catalog(catalog, pages, warns=None):
     return merged, len(merged), orphans
 
 
+def _strip_leading_h1(md: str, title: str) -> str:
+    """旧版正文常自带 `# 标题` 首行，而查看器页头已按元数据渲染 h1——去重。"""
+    lines = md.split("\n")
+    i = 0
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    if i >= len(lines):
+        return md
+    m = re.match(r"^#\s+(.+?)\s*$", lines[i])
+    if not m:
+        return md
+    norm = lambda s: re.sub(r"\s+", "", s).casefold()
+    if norm(m.group(1)) != norm(title or ""):
+        return md
+    return "\n".join(lines[i + 1:]).lstrip("\n")
+
+
 def cmd_import(args):
     src = Path(args.source).expanduser()
     if not src.is_absolute():
@@ -1169,6 +1197,16 @@ def cmd_import(args):
         print(f"[dsh-wiki] WARN {w}", file=sys.stderr)
     if orphans:
         print(f"[dsh-wiki] WARN {orphans} 个内容页不在目录树中，已降级为根节点", file=sys.stderr)
+    deduped = 0
+    for p in merged:
+        md = p.get("markdown")
+        if isinstance(md, str):
+            stripped = _strip_leading_h1(md, str(p.get("title") or ""))
+            if stripped != md:
+                p["markdown"] = stripped
+                deduped += 1
+    if deduped:
+        print(f"[dsh-wiki] 已去掉 {deduped} 页与页头 h1 重复的首行标题")
     repo_id = meta_src.get("repoId") or draft.get("repoId") or ""
     explicit_dest = bool(args.dest)
     if args.dest:
