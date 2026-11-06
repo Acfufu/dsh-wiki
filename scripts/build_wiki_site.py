@@ -591,6 +591,8 @@ function show(id){
   document.querySelectorAll('.navitem').forEach(function(a){a.classList.toggle('active',a.dataset.page===id);});
   try{if(history.replaceState)history.replaceState(null,'','#'+id);}catch(e){}
   $('#main').scrollTop=0;
+  /* 刚露出的页面此前一直 display:none，里面的图还没渲过——露出后补渲 */
+  renderMermaids();
 }
 document.addEventListener('click',function(e){
   var a=e.target.closest('.navitem');
@@ -630,32 +632,47 @@ function mermaidFallback(){
   document.querySelectorAll('pre.mermaid').forEach(function(el){
     el.classList.add('mermaid-fallback');el.textContent=el.dataset.src||el.textContent;});
 }
+var __mmChain=Promise.resolve();
 function renderMermaids(){
   if(!window.mermaid||!window.mermaid.initialize){mermaidFallback();return false;}
+  /* 隐藏容器（display:none）里 getBBox 返回零尺寸，dagre 布局退化成
+     "Could not find a suitable point for the given distance"——只渲染当前
+     可见的块，其余等 show() 切页露出后再补渲。 */
+  var vis=[];
   document.querySelectorAll('pre.mermaid').forEach(function(el){
+    if(el.closest('[hidden]'))return;
     if(el.dataset.src===undefined){el.dataset.src=el.textContent;}
     /* 重渲前必须清掉 mermaid 的处理标记，否则主题切换后图会永久变回源码 */
     el.removeAttribute('data-processed');
     el.classList.remove('mermaid-fallback');
     el.innerHTML='';el.textContent=el.dataset.src;
+    vis.push(el);
   });
   try{
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',suppressErrors:true,
       theme:document.documentElement.dataset.theme==='dark'?'dark':'neutral'});
-    var r=mermaid.run({querySelector:'pre.mermaid'});
-    if(r&&typeof r.catch==='function'){r.catch(function(){mermaidFallback();});}
-    return true;
   }catch(err){
     mermaidFallback();
     return false;
   }
+  /* mermaid.run 一次喂多个块时任何一块失败会让整个 Promise reject——把失败
+     粒度收敛到单块（独立 fallback），一张坏图不再拖垮整站其余图。 */
+  vis.forEach(function(el){
+    __mmChain=__mmChain.then(function(){
+      return mermaid.run({nodes:[el]}).catch(function(){
+        el.classList.add('mermaid-fallback');
+        el.textContent=el.dataset.src||el.textContent;
+      });
+    });
+  });
+  return true;
 }
-function applyTheme(t){
+function applyTheme(t,defer){
   t=(t==='dark')?'dark':'light';
   document.documentElement.dataset.theme=t;
   try{localStorage.setItem('rw-theme',t);}catch(e){}
   document.getElementById('tbtn').textContent=t==='dark'?'☀️ 浅色':'🌙 深色';
-  renderMermaids();
+  if(!defer)renderMermaids();
 }
 document.getElementById('tbtn').onclick=function(){
   applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');};
@@ -664,7 +681,9 @@ try{saved=localStorage.getItem('rw-theme')||'';}catch(e){}
 if(saved!=='dark'&&saved!=='light'){
   try{saved=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){saved='light';}
 }
-applyTheme(saved);
+/* 先定主题、再切页触发渲染——首次渲染绝不能发生在页面仍整体隐藏时
+   （display:none 里 mermaid 量不到文本尺寸，布局会退化） */
+applyTheme(saved,true);
 var initial=location.hash.slice(1);
 show(initial);
 })();
